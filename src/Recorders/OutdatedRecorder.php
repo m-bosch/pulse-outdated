@@ -5,14 +5,18 @@
 
 namespace AaronFrancis\Pulse\Outdated\Recorders;
 
+use DateInterval;
 use Illuminate\Config\Repository;
 use Illuminate\Support\Facades\Process;
 use Laravel\Pulse\Events\SharedBeat;
 use Laravel\Pulse\Pulse;
+use Laravel\Pulse\Recorders\Concerns\Throttling;
 use RuntimeException;
 
 class OutdatedRecorder
 {
+    use Throttling;
+
     /**
      * The events to listen for.
      *
@@ -24,26 +28,36 @@ class OutdatedRecorder
      * Create a new recorder instance.
      */
     public function __construct(
-        protected Pulse $pulse,
+        protected Pulse      $pulse,
         protected Repository $config
-    ) {
+    )
+    {
         //
     }
 
     public function record(SharedBeat $event): void
     {
-        if ($event->time !== $event->time->startOfDay()) {
+        if ($event->time->diffInSeconds($event->time->copy()->startOfDay()) > 10) {
             return;
         }
 
-        $result = Process::run('composer outdated -D -f json');
+        // Throttle key on calendarday
+        $throttleKey = 'shared-beat:composer-outdated:' . $event->time->toDateString();
 
-        if ($result->failed()) {
-            throw new RuntimeException('Composer outdated failed: ' . $result->errorOutput());
+        // Prevent executiion on same day
+        if (!Cache::has($throttleKey)) {
+            // Expire end of the day
+            Cache::put($throttleKey, true, $event->time->copy()->endOfDay());
+
+            $result = Process::run('composer outdated -D -f json');
+
+            if ($result->failed()) {
+                throw new RuntimeException('Composer outdated failed: ' . $result->errorOutput());
+            }
+
+            json_decode($result->output(), flags: JSON_THROW_ON_ERROR);
+
+            $this->pulse->set('composer_outdated', 'result', $result->output());
         }
-
-        json_decode($result->output(), flags: JSON_THROW_ON_ERROR);
-
-        $this->pulse->set('composer_outdated', 'result', $result->output());
     }
 }
