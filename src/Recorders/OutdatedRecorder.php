@@ -5,9 +5,8 @@
 
 namespace AaronFrancis\Pulse\Outdated\Recorders;
 
-use DateInterval;
 use Illuminate\Config\Repository;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Process;
 use Laravel\Pulse\Events\SharedBeat;
 use Laravel\Pulse\Pulse;
@@ -38,8 +37,7 @@ class OutdatedRecorder
 
     public function record(SharedBeat $event): void
     {
-        if ($event->time->diffInSeconds($event->time->copy()->startOfDay()) > 10) {
-            Log::warning('Not Allowed to run now:' .now()->isoFormat('YYYY-MM-DD HH:mm:ss'));
+        if ($event->time->copy()->startOfDay()->diffInSeconds($event->time) > 10) {
             return;
         }
 
@@ -60,9 +58,6 @@ class OutdatedRecorder
             json_decode($result->output(), flags: JSON_THROW_ON_ERROR);
 
             $this->pulse->set('composer_outdated', 'result', $result->output());
-            Log::warning('Outdatedrecorder has just run: ' . now()->isoFormat('YYYY-MM-DD HH:mm:ss'));
-        } else {
-            Log::warning('Outdated recorder cache hit.');
         }
     }
 }
