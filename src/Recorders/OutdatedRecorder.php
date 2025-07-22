@@ -41,10 +41,10 @@ class OutdatedRecorder
             return;
         }
 
-        // Throttle key on calendarday
+        // Throttle key on calendar day
         $throttleKey = 'shared-beat:composer-outdated:' . $event->time->toDateString();
 
-        // Prevent executiion on same day
+        // Prevent execution on same day
         if (!Cache::has($throttleKey)) {
             // Expire end of the day
             Cache::put($throttleKey, true, $event->time->copy()->endOfDay());
