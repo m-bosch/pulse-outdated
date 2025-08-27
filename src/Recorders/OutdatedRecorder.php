@@ -37,7 +37,7 @@ class OutdatedRecorder
 
     public function record(SharedBeat $event): void
     {
-        if ($event->time->copy()->startOfDay()->diffInSeconds($event->time) > 10) {
+        if ($event->time->copy()->startOfDay()->diffInSeconds($event->time) > 30) {
             return;
         }
 
